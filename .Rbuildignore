@@ -1,0 +1,4 @@
+^data-raw$
+^README\.Rmd$
+^AirportPassengerFlow\.Rproj$
+^\.Rproj\.user$
