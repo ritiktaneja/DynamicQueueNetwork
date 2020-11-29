@@ -1,21 +1,20 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
-AirportPassengerFlow
+DynamicQueueNetwork
 ====================
 
 ``` r
 library(devtools)
-install_github("AnthonyEbert/EasyMMD")
-install_github("AnthonyEbert/AirportPassengerFlow")
+install_github("ritiktaneja/DynamicQueueNetwork")
 ```
 
-Data
+Data 
 ====
-
+The following csv can be generated from model available at https://github.com/ritiktaneja/People-Counter
 Let's look at all the data. We need data not only to fit parameters, but also to generate realisations - for example we need a flight schedule.
 
 ``` r
-library(AirportPassengerFlow)
+library(DynamicQueueNetwork)
 
 flight_level
 #>    flight arrive gate passengers locals
@@ -153,18 +152,18 @@ passenger_df <- AirportSimulate1(global_level, flight_level_disembark, gate_leve
 passenger_df
 #> # A tibble: 5,454 x 27
 #> # Groups:   route [2]
-#>    flight arrive  gate passengers locals scale_dpl shape_dpl    ID
-#>     <int>  <int> <int>      <int>  <int>     <dbl>     <dbl> <int>
-#>  1      1    378     1        331    216      2.33      4.23     1
-#>  2      1    378     1        331    216      2.33      4.23     2
-#>  3      1    378     1        331    216      2.33      4.23     3
-#>  4      1    378     1        331    216      2.33      4.23     4
-#>  5      1    378     1        331    216      2.33      4.23     5
-#>  6      1    378     1        331    216      2.33      4.23     6
-#>  7      1    378     1        331    216      2.33      4.23     7
-#>  8      1    378     1        331    216      2.33      4.23     8
-#>  9      1    378     1        331    216      2.33      4.23     9
-#> 10      1    378     1        331    216      2.33      4.23    10
+#>    flight arrive  gate passengers  scale_dpl shape_dpl    ID
+#>     <int>  <int> <int>      <int>         <dbl>     <dbl> <int>
+#>  1      1    378     1        331          2.33      4.23     1
+#>  2      1    378     1        331          2.33      4.23     2
+#>  3      1    378     1        331          2.33      4.23     3
+#>  4      1    378     1        331          2.33      4.23     4
+#>  5      1    378     1        331          2.33      4.23     5
+#>  6      1    378     1        331          2.33      4.23     6
+#>  7      1    378     1        331          2.33      4.23     7
+#>  8      1    378     1        331          2.33      4.23     8
+#>  9      1    378     1        331          2.33      4.23     9
+#> 10      1    378     1        331          2.33      4.23    10
 #> # … with 5,444 more rows, and 19 more variables: distance_gate <int>,
 #> #   nat <fct>, imm_sg <dbl>, imm_mg <dbl>, route <chr>, rate_imm <dbl>,
 #> #   server_imm <list>, deplane <dbl>, arrive_ac <dbl>, walk_ac <dbl>,
@@ -238,71 +237,3 @@ ggplot(passenger_df) + aes(x = depart_imm) + geom_freqpoly(breaks = 360:1200) + 
 ```
 
 <img src="man/figures/README-unnamed-chunk-6-2.png" width="100%" />
-
-MMD
----
-
-Here we find the MMD estimator between samples from normal distributions with different mean parameters.
-
-``` r
-library(EasyMMD)
-
-x <- rnorm(100, mean = 0, sd = 1)
-y <- rnorm(100, mean = 1, sd = 1)
-
-head(x)
-#> [1]  1.5032923 -1.4261792  0.4345925 -0.2587195 -0.7753654  0.8638636
-head(y)
-#> [1]  0.57422872 -0.09524592 -0.03740582  0.19329397 -0.33296134  1.63906460
-
-MMD(x,y)
-#> [1] 0.1464939
-```
-
-In the airport case we use vectors of arrival and departure times.
-
-``` r
-
-sigma_k <- 20 # Tuning parameter for MMD
-
-MMD(passenger_df$arrive_imm, passenger_df_2$arrive_imm, sigma = sigma_k) +
-  MMD(passenger_df$depart_imm, passenger_df_2$depart_imm, sigma = sigma_k)
-#> [1] 0.02664041
-```
-
-Performance measures
-====================
-
-Suppose we need to generate 20 samples of queue lengths from each model. queuecomputer doesn't generate queue lengths by default because they're not needed in the QDC algorithm. We can back-calculate what they should have been with another function from queuecomputer called queue\_lengths.
-
-``` r
-library(dplyr)
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
-library(ggplot2)
-library(queuecomputer)
-
-sim_df <- data.frame(sim_number = c(1:20))
-
-queue_df <- sim_df %>% 
-  group_by(sim_number) %>%
-  do(AirportPassengerFlow::AirportSimulate1(global_level, flight_level_disembark, gate_level, nat_level, route_level)) %>%
-  group_by(route, sim_number) %>%
-  do(queue_lengths(.$arrive_imm, .$service_imm, departures = .$depart_imm))
-
-queue_df2 <- sim_df %>% 
-  group_by(sim_number) %>%
-  do(AirportPassengerFlow::AirportSimulate1(global_level, flight_level2, gate_level, nat_level, route_level)) %>%
-  group_by(route, sim_number) %>%
-  do(queue_lengths(.$arrive_imm, .$service_imm, departures = .$depart_imm))
-  
-ggplot(queue_df) + aes(x = times, y = queuelength, group = factor(sim_number)) + geom_step(alpha = 0.2) + facet_wrap(~route) + geom_step(data = queue_df2, col = "red", alpha = 0.2)
-```
-
-<img src="man/figures/README-unnamed-chunk-9-1.png" width="100%" />
